@@ -186,6 +186,7 @@ def process_and_upload_to_chroma(prefix: str):
                         collected_text.append(text)
 
                 if collected_text:
+                    print("collected !!!!!!!!!!!!!!!!!!!!!!!!!")
                     content = "\n".join(collected_text)
                     chunks.append({
                         "page_content": content,
