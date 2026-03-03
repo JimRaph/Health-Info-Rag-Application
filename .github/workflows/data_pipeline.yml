@@ -37,7 +37,7 @@ jobs:
           CHROMA_DIR: ${{ secrets.CHROMA_DIR }}
           CHROMA_DB_FILENAME: ${{ secrets.CHROMA_DB_FILENAME }}
         run: |
-          python airflow/scripts/data_preprocessing.py
+          python airflow/scripts/data_processor.py
 
   # deploy-to-hf-space:
   #   runs-on: ubuntu-latest
