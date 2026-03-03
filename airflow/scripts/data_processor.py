@@ -205,6 +205,7 @@ def process_and_upload_to_chroma(prefix: str):
                 data = json.loads(raw_data)
                 html_splitter = HTMLHeaderTextSplitter(headers_to_split_on=[("h1", "topic"), ("h2", "subtopic")])
                 chunks = html_splitter.split_text(data["raw_html"])
+                logger.info("split_text returned %d items", len(chunks)) if chunks: first = chunks[0] logger.info("type(first) = %s", type(first)) 
                 print("from no chunks: ", chunks[:5])
 
         except Exception as e:
