@@ -195,7 +195,7 @@ def process_and_upload_to_chroma(prefix: str):
                             "source": data["url"]
                         }
                     })
-
+                    
             if not chunks:
                 data = json.loads(raw_data)
                 html_splitter = HTMLHeaderTextSplitter(headers_to_split_on=[("h1", "topic"), ("h2", "subtopic")])
