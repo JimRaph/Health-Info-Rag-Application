@@ -208,6 +208,7 @@ def process_and_upload_to_chroma(prefix: str):
 
         processed_docs = []
         for i, chunk in enumerate(chunks):
+            print("Checkpoint !!!!!!!!")
             processed_docs.append({
                 "id": f"{data['url']}-{i}",
                 "document": chunk.page_content,
