@@ -186,7 +186,6 @@ def process_and_upload_to_chroma(prefix: str):
                         collected_text.append(text)
 
                 if collected_text:
-                    print("collected !!!!!!!!!!!!!!!!!!!!!!!!!")
                     content = "\n".join(collected_text)
                     chunks.append({
                         "page_content": content,
@@ -196,16 +195,11 @@ def process_and_upload_to_chroma(prefix: str):
                             "source": data["url"]
                         }
                     })
-                    print(chunk.page_content[:4])
-            print("printing chunk")
-            print(chunk.page_content[:4])
-
+                    
             if not chunks:
-                print("no chunks!!!!")
                 data = json.loads(raw_data)
                 html_splitter = HTMLHeaderTextSplitter(headers_to_split_on=[("h1", "topic"), ("h2", "subtopic")])
                 chunks = html_splitter.split_text(data["raw_html"])
-                print("from no chunks: ", chunks[:5])
 
         except Exception as e:
             logger.error(f"Chunking failed for {key}: {e}")
@@ -213,7 +207,6 @@ def process_and_upload_to_chroma(prefix: str):
 
         processed_docs = []
         for i, chunk in enumerate(chunks):
-            print("Checkpoint !!!!!!!!")
             processed_docs.append({
                 "id": f"{data['url']}-{i}",
                 "document": chunk.page_content,
@@ -223,8 +216,7 @@ def process_and_upload_to_chroma(prefix: str):
                     "subtopic": chunk.metadata.get("subtopic") or "",
                 }
             })
-            print("printing chunk")
-            print(chunk.page_content[:4])
+
 
         upload_to_s3(
             json.dumps(processed_docs),
