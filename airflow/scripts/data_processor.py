@@ -212,8 +212,8 @@ def process_and_upload_to_chroma(prefix: str):
                 "document": chunk["page_content"],
                 "metadata": {
                     "source": data["url"],
-                    "topic": chunk.metadata.get("topic") or data["topic"],
-                    "subtopic": chunk.metadata.get("subtopic") or "",
+                    "topic": chunk["metadata"].get("topic", data["topic"]),
+                    "subtopic": chunk["metadata"].get("subtopic", ""),
                 }
             })
 
