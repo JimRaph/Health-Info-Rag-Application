@@ -1,0 +1,16 @@
+name: ping db
+on:
+  schedule:
+    - cron: "0 0 * * 1,4"
+  workflow_dispatch:
+
+jobs:
+  ping-db:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ping db
+        run: | 
+          psql "$DATABASE_URL" -c "SELECT 1;"
+        env: 
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        
