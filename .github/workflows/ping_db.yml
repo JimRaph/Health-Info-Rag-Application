@@ -11,9 +11,21 @@ jobs:
       - name: ping db
         run: | 
           # psql "$DATABASE_URL" -c "SELECT 1;"
-          curl -s -X GET "${SUPABASE_URL}/rest/v1/" \
-          -H "apikey: ${SUPABASE_KEY}" \
-          -H "Authorization: Bearer ${SUPABASE_KEY}"
+          full_url="${SUPABASE_URL}"
+          echo "Pinging: $full_url"
+          
+          response_code=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X GET "$full_url" \
+            -H "apikey: ${SUPABASE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_KEY}")
+          
+          echo "Response code: $response_code"
+          if [ "$response_code" = "200" ]; then
+            echo "Supabase API ping successful"
+          else
+            echo "Supabase API ping failed (code: $response_code)"
+            exit 1
+          fi
         env: 
           # DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
