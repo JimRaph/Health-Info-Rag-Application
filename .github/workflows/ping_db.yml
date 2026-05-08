@@ -10,7 +10,12 @@ jobs:
     steps:
       - name: ping db
         run: | 
-          psql "$DATABASE_URL" -c "SELECT 1;"
+          # psql "$DATABASE_URL" -c "SELECT 1;"
+          curl -s -X GET "${SUPABASE_URL}/rest/v1/" \
+          -H "apikey: ${SUPABASE_KEY}" \
+          -H "Authorization: Bearer ${SUPABASE_KEY}"
         env: 
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SECRET }}
         
