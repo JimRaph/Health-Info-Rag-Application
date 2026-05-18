@@ -186,7 +186,6 @@ def process_and_upload_to_chroma(prefix: str):
                         collected_text.append(text)
 
                 if collected_text:
-                    print("collected !!!!!!!!!!!!!!!!!!!!!!!!!")
                     content = "\n".join(collected_text)
                     chunks.append({
                         "page_content": content,
@@ -196,7 +195,7 @@ def process_and_upload_to_chroma(prefix: str):
                             "source": data["url"]
                         }
                     })
-
+                    
             if not chunks:
                 print("Not chunks")
                 data = json.loads(raw_data)
@@ -213,13 +212,14 @@ def process_and_upload_to_chroma(prefix: str):
             print(chunk.page_content[:3])
             processed_docs.append({
                 "id": f"{data['url']}-{i}",
-                "document": chunk.page_content,
+                "document": chunk["page_content"],
                 "metadata": {
                     "source": data["url"],
-                    "topic": chunk.metadata.get("topic") or data["topic"],
-                    "subtopic": chunk.metadata.get("subtopic") or "",
+                    "topic": chunk["metadata"].get("topic", data["topic"]),
+                    "subtopic": chunk["metadata"].get("subtopic", ""),
                 }
             })
+
 
         upload_to_s3(
             json.dumps(processed_docs),

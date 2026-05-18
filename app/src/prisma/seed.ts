@@ -22,7 +22,7 @@ async function main() {
     },
   })
   
-  console.log('✅ Created test user:', user.email)
+  console.log('reated test user:', user.email)
   
   const conversation = await prisma.conversation.create({
     data: {
@@ -55,8 +55,8 @@ async function main() {
     },
   })
   
-  console.log(' Created sample conversation ', conversation)
-  console.log(' Database seeded successfully!')
+  console.log('Created sample conversation ', conversation)
+  console.log('Database seeded successfully!')
 }
 
 main()
