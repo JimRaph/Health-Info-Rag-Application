@@ -1,5 +1,4 @@
 import { Conversation } from '@/types/chat';
-// import { TrashIcon } from '@heroicons/react/24/outline'
 import React, { Dispatch, SetStateAction } from 'react'
 
 interface OptionsProps {

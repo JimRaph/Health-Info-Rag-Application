@@ -67,7 +67,6 @@ export function SignInForm() {
 
   return (
     <div className="flex min-h-screen">
-   
       <motion.div
         initial={{ x: -50, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
@@ -76,29 +75,18 @@ export function SignInForm() {
         w-1/2 relative bg-linear-to-br from-sky-100 via-sky-200
          to-sky-300 text-white overflow-hidden"
       >
-    
-        <motion.div
-          animate={{ scale: [1, 1.2, 1] }}
-          transition={{ repeat: Infinity, duration: 2 }}
-          className="mb-6"
-        >
-          <HeartIcon className="w-16 h-16 text-sky-600" />
-        </motion.div>
 
-        <motion.h2
-          initial={{ y: 30, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="text-4xl font-semibold mb-3 text-sky-900"
-        >
-          Welcome to MediFact
-        </motion.h2>
+        <div className="flex items-center mb-2">
+          <h1 className="text-3xl font-semibold tracking-tight text-sky-900 ml-0.5">
+            MediFact
+          </h1>
+        </div>
 
-        <div className=" text-red-800 max-w-md text-center leading-relaxed">
-          <p >Empowering healthcare through AI.</p>  
-          <p >Log in to continue your journey.</p>
-        </div> 
 
+        <div className=" text-sky-800 max-w-md text-center leading-relaxed">
+          <p>Empowering healthinfo through AI</p>
+          <p>Log in to continue</p>
+        </div>
 
         <svg
           className="absolute bottom-0 left-0 w-full opacity-40"
@@ -112,7 +100,6 @@ export function SignInForm() {
         </svg>
       </motion.div>
 
-   
       <motion.div
         initial={{ x: 50, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
@@ -130,8 +117,7 @@ export function SignInForm() {
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="">
-           
-            <div className='mb-4'>
+            <div className="mb-4">
               <label
                 htmlFor="email"
                 className="block text-sm font-medium text-gray-700"
@@ -148,7 +134,7 @@ export function SignInForm() {
               />
             </div>
 
-            <div className='mb-4'>
+            <div className="mb-4">
               <label
                 htmlFor="password"
                 className="block text-sm font-medium text-gray-700"
@@ -165,16 +151,15 @@ export function SignInForm() {
               />
             </div>
 
-              {error && <p className='text-red-800'>{error}</p>}
+            {error && <p className="text-red-800">{error}</p>}
             <button
               type="submit"
               disabled={isLoading}
               className="w-full bg-sky-600 hover:bg-sky-700 text-white font-medium 
               py-2 mt-2 rounded-lg transition"
             >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+              {isLoading ? "Signing in..." : "Sign In"}
             </button>
-            
           </form>
 
           <div className="flex items-center justify-center">
@@ -191,22 +176,37 @@ export function SignInForm() {
           >
             <Image
               src="https://www.svgrepo.com/show/475656/google-color.svg"
-              alt=''
+              alt=""
               width={18}
               height={18}
             />
             Continue with Google
           </button>
-          <button 
-          className="text-center w-full text-gray-700 cursor-pointer
+
+          <div className="flex items-center justify-center">
+            <div className="h-px bg-gray-300 w-1/4"></div>
+            <span className="text-gray-500 text-sm mx-3">or</span>
+            <div className="h-px bg-gray-300 w-1/4"></div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard")}
+            className="w-full text-center text-gray-600 hover:text-sky-600 py-2 
+              rounded-lg transition text-sm font-medium"
+          >
+            Continue as guest
+          </button>
+
+          <button
+            className="text-center w-full text-gray-700 cursor-pointer
            hover:text-blue-600 transition-colors"
-          onClick={
-            ()=>router.push('/register')
-          }>
+            onClick={() => router.push("/register")}
+          >
             Create an account?
           </button>
         </div>
       </motion.div>
     </div>
-  )
+  );
 }

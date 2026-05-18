@@ -10,7 +10,6 @@ interface UseConversationsReturn {
     selectConversation: (conversation: Conversation | null) => void
     createNewConversation: () => void
     isLoadingConversations: boolean
-    isCreatingConversation: boolean
     deleteConversation: (conversationId: string) => void 
     isDeletingConversation: boolean
     conversationDeleteError: string | null
@@ -20,7 +19,7 @@ interface UseConversationsReturn {
 
 const storedconversationkey = 'stored:conversation'
 
-export function useConversations(userId: string): UseConversationsReturn {
+export function useConversations(userId?: string | null): UseConversationsReturn {
  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null)
  const [conversationDeleteError, setConversationDeleteError] = useState<string | null>(null);
  const [responseMsg, setResponseMsg] = useState<string | null>(null);
@@ -36,57 +35,36 @@ export function useConversations(userId: string): UseConversationsReturn {
     }
     return response.json()
 },
-
+    enabled: !!userId,
     staleTime: 5 * 60 * 1000, 
  })
 
- useEffect(()=>{
-    if(conversations.length > 0) {  
-        const storedConversationId = typeof window !== 'undefined' ? localStorage.getItem(storedconversationkey) : null 
-        if(!storedConversationId) return 
-
-        if(currentConversation) return 
-        console.log('conversations test: ', conversations)
-        const isFound = conversations.find((conv) => conv.id === storedConversationId)
-        if(isFound){
-            console.log('isfound: ', storedConversationId, isFound)
-            setCurrentConversation(isFound)
-        } else {
-            localStorage.removeItem(storedconversationkey)
-            console.log('removed: ', storedConversationId)
-            console.log('isfound here: ', isFound)
-        }
-    } 
-    
- }, [conversations,currentConversation])
 
 
- //Original intention here was to sync conversation across tabs
- // but a user might want to have two separate conversation simultaneouly
- // I feel like this is a better user experience than syncing.
-//  useEffect(()=>{
-//     if(conversations.length < 0) return
-        
-//         const onStorage = (e:StorageEvent) => {
-//         if (e.key !== storedconversationkey) return 
-//         const newId = e.newValue
-//         if(!newId){
-//             setCurrentConversation(null)
-//             return 
-//         }
+useEffect(() => {
+  if (conversations.length === 0) return;
 
-//         const isFound = conversations.find((conv) => conv.id === newId)
-//         if(isFound){
-//             setCurrentConversation(isFound)
-//         } else {
+  const storedConversationId =
+    typeof window !== "undefined"
+      ? localStorage.getItem(storedconversationkey)
+      : null;
+  if (!storedConversationId) return;
 
-//         }
-//     }
-    
+  const match = conversations.find((c) => c.id === storedConversationId);
 
-//     window.addEventListener('storage', onStorage)
-//     return () => window.removeEventListener('storage', onStorage)
-//  },[conversations])
+  if (match) {
+    if (currentConversation?.id !== match.id) {
+      setCurrentConversation(match);
+    }
+  } else {
+    localStorage.removeItem(storedconversationkey);
+    if (currentConversation?.id === storedConversationId) {
+      setCurrentConversation(null);
+    }
+  }
+}, [conversations, currentConversation]);
+
+
 
 
  const deleteConversationMutation = useMutation({
@@ -117,24 +95,28 @@ export function useConversations(userId: string): UseConversationsReturn {
 
     onError: (error) => {
         setConversationDeleteError('Error deleting conversation, try again later')
-        console.error('Error deleting conversation: ', error)
+        // console.error('Error deleting conversation: ', error)
     }
  })
 
 
  const selectConversation = useCallback((conversation: Conversation | null) => {
     setCurrentConversation(conversation)
-    console.log('convo ', conversation)
+    // console.log('convo ', conversation)
     if(conversation?.id){
         try{
+            // console.log('check')
             localStorage.setItem(storedconversationkey, conversation.id)
         } catch(e) {
+            // console.log('chec')
             console.log('Error setting current conversation: ', e)
         }
     } else {
         try {
+            // console.log('che')
             localStorage.removeItem(storedconversationkey)
         } catch(e) {
+            // console.log('ch')
              console.log('Error removing current conversation: ', e)
         }
     }
@@ -151,6 +133,9 @@ export function useConversations(userId: string): UseConversationsReturn {
 
     queryClient.removeQueries({queryKey: ['messages']})
     queryClient.cancelQueries({queryKey: ['messages']})
+
+    window.dispatchEvent(new CustomEvent("cancel-active-mutation"));
+
     setResponseMsg(null)
     setConversationDeleteError(null)
  }, [queryClient])
@@ -170,7 +155,6 @@ export function useConversations(userId: string): UseConversationsReturn {
   selectConversation,
   createNewConversation,
   isLoadingConversations,
-  isCreatingConversation: false,
   deleteConversation,
   isDeletingConversation: deleteConversationMutation.isPending,
   conversationDeleteError,

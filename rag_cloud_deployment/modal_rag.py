@@ -16,6 +16,10 @@ from chromadb.api import Collection
 from chromadb import PersistentClient
 
 from modal import App, Image, Secret, fastapi_endpoint, enter, method
+from fastapi.responses import StreamingResponse
+from transformers import TextIteratorStreamer
+from threading import Thread
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -60,7 +64,7 @@ rag_image = (
     )
 )
 
-app = App("who-rag-llama3-gpu-api", image=rag_image)
+app = App("who-rag-llama3-gpu-api-staging", image=rag_image)
 
 class HistoryMessage(BaseModel):
     role: Literal['user', 'assistant']
@@ -179,42 +183,42 @@ class RagService:
         
         return pipe, tokenizer
 
-    def _initialize_llm_pipeline(self, model_id: str):
-        from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-        from transformers import BitsAndBytesConfig
+    # def _initialize_llm_pipeline(self, model_id: str):
+    #     from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+    #     from transformers import BitsAndBytesConfig
         
-        quantization_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.bfloat16,
-            bnb_4bit_use_double_quant=True,
-        )
+    #     quantization_config = BitsAndBytesConfig(
+    #         load_in_4bit=True,
+    #         bnb_4bit_quant_type="nf4",
+    #         bnb_4bit_compute_dtype=torch.bfloat16,
+    #         bnb_4bit_use_double_quant=True,
+    #     )
         
-        model = AutoModelForCausalLM.from_pretrained(
-            model_id,
-            device_map="auto",
-            trust_remote_code=True,
-            quantization_config=quantization_config,
-            dtype=torch.bfloat16
-        )
+    #     model = AutoModelForCausalLM.from_pretrained(
+    #         model_id,
+    #         device_map="auto",
+    #         trust_remote_code=True,
+    #         quantization_config=quantization_config,
+    #         dtype=torch.bfloat16
+    #     )
         
-        tokenizer = AutoTokenizer.from_pretrained(model_id)
+    #     tokenizer = AutoTokenizer.from_pretrained(model_id)
         
-        if not getattr(tokenizer, "chat_template", None):
-            tokenizer.chat_template = self._get_chat_template()
+    #     if not getattr(tokenizer, "chat_template", None):
+    #         tokenizer.chat_template = self._get_chat_template()
             
-        if tokenizer.pad_token is None:
-            tokenizer.pad_token = tokenizer.eos_token
+    #     if tokenizer.pad_token is None:
+    #         tokenizer.pad_token = tokenizer.eos_token
             
-        pipe = pipeline(
-            "text-generation",
-            model=model,
-            tokenizer=tokenizer,
-            device_map="auto",
-            dtype=torch.bfloat16
-        )
+    #     pipe = pipeline(
+    #         "text-generation",
+    #         model=model,
+    #         tokenizer=tokenizer,
+    #         device_map="auto",
+    #         dtype=torch.bfloat16
+    #     )
         
-        return pipe, tokenizer
+    #     return pipe, tokenizer
 
     @staticmethod
     def _get_chat_template():
@@ -364,22 +368,6 @@ class RagService:
             logger.error(f"Failed to parse JSON classifier output: {e}. Raw: {llm_output}")
             
         return self._rule_based_intent_classification(query)
-
-    def _rule_based_intent_classification(self, query: str) -> str:
-        query_lower = query.lower().strip()
-        
-        greeting_words = ['hello', 'hi', 'hey', 'greetings', 'good morning', 'good afternoon', 'how are you']
-        harmful_keywords = ['harm', 'hurt', 'kill', 'danger', 'illegal', 'prescription without', 'suicide']
-        medical_keywords = ['covid', 'fever', 'pain', 'symptom', 'treatment', 'medicine', 'doctor', 'health', 'disease', 'virus']
-        
-        if any(word in query_lower for word in greeting_words) or len(query_lower.split()) <= 2:
-            return 'GREET'
-        elif any(word in query_lower for word in harmful_keywords):
-            return 'HARMFUL'
-        elif not any(word in query_lower for word in medical_keywords) and len(query_lower.split()) > 3:
-            return 'OFF_TOPIC'
-        else:
-            return 'MEDICAL'
 
     @method()
     async def Greet(self, query: str) -> RAGResponse:
@@ -566,81 +554,151 @@ class RagService:
             raise HTTPException(status_code=400, detail=f"Invalid request format: {str(e)}")
 
         start = time.time()
-        
+
         try:
             logger.info(f'Processing query: {request.query[:100]}...')
-            
-            intent = await self.classify_intent.remote.aio(request.query)
+            intent = await self.classify_intent.local(request.query)
             logger.info(f"Intent classified as: {intent}")
 
             if intent == 'GREET':
-                response = await self.Greet.remote.aio(request.query)
+                response = await self.Greet.local(request.query)
+    
+                if request.stream:
+                    def event_generator():
+                        # Send the greeting as a single token event, then done
+                        yield f"event: token\ndata: {json.dumps({'text': response.answer})}\n\n"
+                        yield f"event: done\ndata: {json.dumps({'conversationId': response.conversation_id})}\n\n"
+        
+                        return StreamingResponse(
+                            event_generator(),
+                            media_type="text/event-stream"
+                        )
+                else:
+                    return response.model_dump()
+
             elif intent in ["HARMFUL", "OFF_TOPIC"]:
-                response = await self.HarmOff.remote.aio(request.query)
+                response = await self.HarmOff.local(request.query)
+    
+                if request.stream:
+                    def event_generator():
+                        yield f"event: token\ndata: {json.dumps({'text': response.answer})}\n\n"
+                        yield f"event: done\ndata: {json.dumps({'conversationId': response.conversation_id})}\n\n"
+        
+                        return StreamingResponse(
+                            event_generator(),
+                            media_type="text/event-stream"
+                        )
+                else:
+                    return response.model_dump()
+
             else:
                 logger.info("Starting full RAG pipeline for medical query")
-                
-                summary = await self.summarize_history.remote.aio(request.history)
-                logger.info("History summarized")
-                
-                expanded_queries = await self.expand_query_with_llm.remote.aio(request.query, summary, request.history)
-                logger.info(f"Expanded queries: {expanded_queries}")
-                
-                context_data, _ = await self._run_with_timeout(
-                    asyncio.to_thread(self.retrieve_context, expanded_queries),
-                    timeout_message="Document retrieval timed out"
-                )
-                logger.info(f"Retrieved {len(context_data)} context chunks")
-                
-                final_context = await self._run_with_timeout(
-                    asyncio.to_thread(self.rerank_documents, request.query, context_data, RETRIEVE_TOP_K_GPU),
-                    # timeout_seconds=60,
-                    timeout_message="Document reranking timed out"
-                )
-                logger.info(f"Reranked to {len(final_context)} chunks")
-                
-                final_sources = list({c.get('url') for c in final_context if c.get('url')})
-                
-                if not final_context:
-                    final_answer = "I could not find relevant documents in the knowledge base to answer your question. I can help you if you have another question."
-                    context_chunks_text = []
-                else:
-                    initial_messages = self._build_prompt(request.query, final_context, summary)
-                    max_input_tokens = LLAMA_3_CONTEXT_WINDOW - MAX_NEW_TOKENS_GPU - SAFETY_BUFFER
-                    
-                    final_messages, final_context_pruned, tok_length = await self.prune_messages_to_fit_context.remote.aio(
-                        initial_messages, final_context, summary, max_input_tokens
-                    )
-                    
-                    context_chunks_text = [c['text'] for c in final_context_pruned]
-                    prompt_text = self.intent_tokenizer.apply_chat_template(final_messages, tokenize=False, add_generation_prompt=True)
-                    
-                    max_new = max(MAX_NEW_TOKENS_GPU, tok_length if isinstance(tok_length, int) and tok_length > 0 else MAX_NEW_TOKENS_GPU)
-                    
-                    final_answer = await self._run_with_timeout(
-                        asyncio.to_thread(self._call_llm_pipeline, self.intent_pipeline, prompt_text, False, max_new, False),
-                        # timeout_seconds=120,
-                        timeout_message="Answer generation timed out"
-                    )
-                    logger.info("Generated final answer")
 
+            summary = await self.summarize_history.local(request.history)
+            expanded_queries = await self.expand_query_with_llm.local(
+                request.query, summary, request.history
+            )
+
+            context_data, _ = await self._run_with_timeout(
+                asyncio.to_thread(self.retrieve_context, expanded_queries),
+                timeout_message="Document retrieval timed out"
+            )
+
+            final_context = await self._run_with_timeout(
+                asyncio.to_thread(self.rerank_documents, request.query, context_data, RETRIEVE_TOP_K_GPU),
+                timeout_message="Document reranking timed out"
+            )
+
+            final_sources = list({c.get('url') for c in final_context if c.get('url')})
+
+            if not final_context:
+                # No context found — return immediately, no streaming needed
+                final_answer = "I could not find relevant documents in the knowledge base to answer your question. I can help you if you have another question."
                 response = RAGResponse(
                     query=request.query,
                     answer=final_answer,
-                    sources=final_sources,
-                    context_chunks=context_chunks_text,
+                    sources=[],
+                    context_chunks=[],
                     expanded_queries=expanded_queries
                 )
+                # return response.model_dump()
 
-            end_time = time.time()
-            logger.info(f"Total Latency: {round(end_time - start, 2)}s")
-            return response.model_dump()
-            
+            initial_messages = self._build_prompt(request.query, final_context, summary)
+            max_input_tokens = LLAMA_3_CONTEXT_WINDOW - MAX_NEW_TOKENS_GPU - SAFETY_BUFFER
+
+            final_messages, final_context_pruned, tok_length = await self.prune_messages_to_fit_context.local(
+                initial_messages, final_context, summary, max_input_tokens
+            )
+
+            context_chunks_text = [c['text'] for c in final_context_pruned]
+            prompt_text = self.intent_tokenizer.apply_chat_template(
+                final_messages, tokenize=False, add_generation_prompt=True
+            )
+
+            max_new = max(
+                MAX_NEW_TOKENS_GPU,
+                tok_length if isinstance(tok_length, int) and tok_length > 0 else MAX_NEW_TOKENS_GPU
+            )
+
+            # ================================================================
+            # STREAMING BRANCH
+            # ================================================================
+            if request.stream:
+                def event_generator():
+                    # 1. Send metadata first (sources, etc.)
+                    meta = {
+                        "sources": final_sources,
+                        "context_chunks": context_chunks_text,
+                        "expanded_queries": expanded_queries,
+                    }
+                    yield f"event: meta\ndata: {json.dumps(meta)}\n\n"
+
+                    # 2. Stream tokens as they are generated
+                    for token in self._stream_llm(self.intent_pipeline, prompt_text, max_new):
+                        yield f"event: token\ndata: {json.dumps({'text': token})}\n\n"
+                        # yield f"{token}"
+
+                    # 3. Done signal
+                    yield f"event: done\ndata: {json.dumps({})}\n\n"
+
+                return StreamingResponse(
+                    event_generator(),
+                    media_type="text/event-stream"
+                )
+
+                # ================================================================
+                # NON-STREAMING BRANCH (existing behavior)
+                # ================================================================
+                # final_answer = await self._run_with_timeout(
+                #     asyncio.to_thread(
+                #         self._call_llm_pipeline,
+                #         self.intent_pipeline,
+                #         prompt_text,
+                #         False,
+                #         max_new,
+                #         False
+                #     ),
+                #     timeout_message="Answer generation timed out"
+                # )
+
+                # response = RAGResponse(
+                #     query=request.query,
+                #     answer=final_answer,
+                #     sources=final_sources,
+                #     context_chunks=context_chunks_text,
+                #     expanded_queries=expanded_queries
+                # )
+
+                # end_time = time.time()
+                # logger.info(f"Total Latency: {round(end_time - start, 2)}s")
+                # return response.model_dump()
+
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Unhandled exception in RAG handler: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 
     async def _run_with_timeout(self, awaitable: Any, timeout_seconds: int = 300, timeout_message: str = "Request timed out") -> Any:
         try:
@@ -653,3 +711,37 @@ class RagService:
         except Exception as e:
             logger.error(f"Unexpected error in _run_with_timeout: {e}")
             raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+
+    @staticmethod
+    def _stream_llm(pipe, prompt_text: str, max_new_tokens: int):
+        """
+        Generator that yields tokens as the LLM produces them.
+        Runs the pipeline in a background thread and consumes the streamer.
+        """
+        streamer = TextIteratorStreamer(
+            pipe.tokenizer,
+            skip_prompt=True,
+            skip_special_tokens=True
+        )
+
+        generation_kwargs = dict(
+            text_inputs=prompt_text,
+            max_new_tokens=max_new_tokens,
+            temperature=0.6,
+            do_sample=True,
+            pad_token_id=pipe.tokenizer.eos_token_id,
+            return_full_text=False,
+            streamer=streamer,
+        )
+
+        thread = Thread(target=pipe, kwargs=generation_kwargs)
+        thread.start()
+
+        for text in streamer:
+            if text:
+                yield text
+
+        thread.join()
+
+

@@ -11,8 +11,8 @@ class RateLimitService {
   private readonly mutex = new Mutex(); 
 
 
-  private readonly WINDOW_MS = 60 * 60 * 1000;
-  public readonly MAX_REQUESTS = 3;
+  private readonly WINDOW_MS = 120 * 1000;
+  public readonly MAX_REQUESTS = 10;
 
   private readonly CLEANUP_INTERVAL_MS = 10 * 60 * 1000; 
   private cleanupTimer: NodeJS.Timeout | null = null;
