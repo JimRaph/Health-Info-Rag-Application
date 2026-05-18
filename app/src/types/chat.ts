@@ -6,6 +6,7 @@ export interface Message {
   content: string
   conversationId?: string  
   createdAt: Date | string
+  source?: any[]
 }
 
 export interface Conversation {

@@ -32,8 +32,5 @@ body {
   .scrollbar-thin{
     scrollbar-width: none;
 
-    /* &::-webkit-scrollbar{
-      width: 5px;
-    } */
   }
 }

@@ -86,8 +86,6 @@ export async function healthCheck(): Promise<boolean> {
   }
 }
 
-
-
 export async function getRagAnswer(
     latestQuery: string, 
     conversationHistory: Message[],

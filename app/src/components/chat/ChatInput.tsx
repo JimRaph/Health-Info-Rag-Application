@@ -20,7 +20,7 @@ export function ChatInput({ input, setInput, onSubmit, isLoading }: ChatInputPro
           placeholder="Type your health question..."
           className="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:outline-none
            focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-500"
-          disabled={isLoading}
+          // disabled={isLoading}
         />
         <button
           type="submit"

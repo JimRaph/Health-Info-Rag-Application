@@ -4,16 +4,16 @@ dotenv.config()
 
 async function testConnection() {
   try {
-    console.log('Testing database connection...')
+    console.log('test database connection...')
     
     await prisma.$queryRaw`SELECT 1 as connected`
-    console.log('Database connection successful!')
+    console.log('db connection successful!')
     
     const userCount = await prisma.user.count()
-    console.log(`Users in database: ${userCount}`)
+    console.log(`users in database: ${userCount}`)
     
   } catch (error) {
-    console.error('Database connection failed:', error)
+    console.error('db connection failed:', error)
   } finally {
     await prisma.$disconnect()
   }

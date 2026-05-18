@@ -19,4 +19,5 @@ const checkUser = async (userId: string): Promise<boolean> => {
   return !!user;
 }
 
+
 export { prisma, checkUser }

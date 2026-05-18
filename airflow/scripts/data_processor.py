@@ -198,6 +198,7 @@ def process_and_upload_to_chroma(prefix: str):
                     })
 
             if not chunks:
+                print("Not chunks")
                 data = json.loads(raw_data)
                 html_splitter = HTMLHeaderTextSplitter(headers_to_split_on=[("h1", "topic"), ("h2", "subtopic")])
                 chunks = html_splitter.split_text(data["raw_html"])
@@ -209,6 +210,7 @@ def process_and_upload_to_chroma(prefix: str):
         processed_docs = []
         for i, chunk in enumerate(chunks):
             print("Checkpoint !!!!!!!!")
+            print(chunk.page_content[:3])
             processed_docs.append({
                 "id": f"{data['url']}-{i}",
                 "document": chunk.page_content,

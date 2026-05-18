@@ -1,0 +1,63 @@
+services:
+  rag-service:
+    build:
+      context: ./rag_cloud_deployment
+      dockerfile: Dockerfile
+    container_name: medifact_rag_local
+    ports:
+      - "8000:8000"
+    environment:
+      CHROMA_COLLECTION: ${CHROMA_COLLECTION}
+      CHROMA_DIR: /app/chroma_db_files
+      CHROMA_CACHE_COLLECTION: ${CHROMA_CACHE_COLLECTION}
+    volumes:
+      - ./chroma_db_files:/app/chroma_db_files:ro
+      - hf_cache:/root/.cache/huggingface
+    networks:
+      - rag_network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.connect(('localhost',8000)); s.close()"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+    restart: unless-stopped
+
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: medifact_app_local
+    ports:
+      - "3000:3000"
+    environment:
+      RAG_SERVICE_URL: ${RAG_SERVICE_URL}
+      RAG_SERVICE_API_KEY: ${RAG_SERVICE_API_KEY}
+      DATABASE_URL: ${DATABASE_URL}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ./app/src:/app/src
+      - ./app/package.json:/app/package.json
+      - ./app/next.config.ts:/app/next.config.ts
+      - ./app/tsconfig.json:/app/tsconfig.json
+      - ./app/next-env.d.ts:/app/next-env.d.ts
+      - /app/node_modules
+    depends_on:
+      rag-service:
+        condition: service_healthy
+    networks:
+      - rag_network
+    restart: unless-stopped
+
+volumes:
+  chroma_data:
+    driver: local
+  hf_cache:
+    driver: local
+
+networks:
+  rag_network:
+    driver: bridge

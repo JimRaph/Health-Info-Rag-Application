@@ -1,7 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { auth } from "@/lib/auth";
 import { prisma } from '@/lib/db'
 
 
@@ -14,7 +13,7 @@ export async function GET(
   context: Context
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await auth();
 
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -48,7 +47,10 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(conversation.messages)
+    return NextResponse.json(conversation.messages.map((message) => ({
+      ...message,
+      source: message.source ? JSON.parse(message.source): [],
+    })))
   } catch (error) {
     console.error('Conversation Messages API Error:', error)
     return NextResponse.json(
