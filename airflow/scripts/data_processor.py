@@ -207,13 +207,20 @@ def process_and_upload_to_chroma(prefix: str):
 
         processed_docs = []
         for i, chunk in enumerate(chunks):
+            if isinstance(chunk, dict):
+                page_content = chunk["page_content"]
+                chunk_metadata = chunk.get("metadata", {})
+            else:
+                page_content = chunk.page_content
+                chunk_metadata = chunk.metadata
+            
             processed_docs.append({
                 "id": f"{data['url']}-{i}",
-                "document": chunk["page_content"],
+                "document": page_content,
                 "metadata": {
                     "source": data["url"],
-                    "topic": chunk["metadata"].get("topic", data["topic"]),
-                    "subtopic": chunk["metadata"].get("subtopic", ""),
+                    "topic": chunk_metadata.get("topic", data["topic"]),
+                    "subtopic": chunk_metadata.get("subtopic", ""),
                 }
             })
 
